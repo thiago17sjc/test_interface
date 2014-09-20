@@ -1,0 +1,325 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <style>
+      html, body, #map-canvas {
+        height: 100%;
+        margin: 0px;
+        padding: 0px
+      }
+      .control_origin {
+        margin-top: 16px;
+        border: 1px solid transparent;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        height: 32px;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      .control_destiny {
+        margin-top: 60px;
+	margin-left: -400px;
+        border: 1px solid transparent;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        height: 32px;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      }
+      
+
+      #pac-input_origin {
+        background-color: #fff;
+        padding: 0 11px 0 13px;
+        width: 400px;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        text-overflow: ellipsis;
+      }
+      #pac-input_destiny {
+        background-color: #fff;
+        padding: 0 11px 0 13px;
+        width: 400px;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        text-overflow: ellipsis;
+      }
+      
+       #pac-input_destiny:focus {
+        border-color: #4d90fe;
+        margin-left: -401px;
+        padding-left: 14px;  /* Regular padding-left + 1. */
+        width: 401px;
+      }     
+      
+      #pac-input_origin:focus {
+        border-color: #4d90fe;
+        margin-left: -1px;
+        padding-left: 14px;  /* Regular padding-left + 1. */
+        width: 401px;
+      }
+
+      .pac-container {
+        font-family: Roboto;
+      }
+
+      #type-selector {
+        color: #fff;
+        background-color: #4d90fe;
+        padding: 5px 11px 0px 11px;
+      }
+
+      #type-selector label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }
+}
+
+    </style>
+    <title>Places search box</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA5qxdGvc0bdQDdt3danE-_3Onkgz2L5qQ&libraries=places"></script>
+    <script>
+// This example adds a search box to a map, using the Google Place Autocomplete
+// feature. People can enter geographical searches. The search box will return a
+// pick list containing a mix of places and predicted search terms.
+
+
+var map;
+var directionsDisplay;
+var directionsService;
+var stepDisplay;
+var markerArray = [];
+var searchBox_origin;
+var searchBox_destiny;
+
+function initialize() {
+
+  var markers = [];
+  map = new google.maps.Map(document.getElementById('map-canvas'), {
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+    center: { lat: -23.2226836, lng:-45.898149},
+          zoom: 14
+  });
+
+
+// Instantiate a directions service.
+  directionsService = new google.maps.DirectionsService();
+  
+  
+  // Create a renderer for directions and bind it to the map.
+  var rendererOptions = {
+    map: map
+  }
+  
+  directionsDisplay = new google.maps.DirectionsRenderer(rendererOptions)
+
+  // Instantiate an info window to hold step text.
+  stepDisplay = new google.maps.InfoWindow();
+
+  
+
+  // Create the search box and link it to the UI element.
+  var input_origin = /** @type {HTMLInputElement} */(
+      document.getElementById('pac-input_origin'));
+  map.controls[google.maps.ControlPosition.TOP_LEFT].push(input_origin);
+  
+  // Create the search box and link it to the UI element.
+  var input_destiny = /** @type {HTMLInputElement} */(
+      document.getElementById('pac-input_destiny'));
+  map.controls[google.maps.ControlPosition.TOP_LEFT].push(input_destiny);
+  
+  
+
+   searchBox_origin = new google.maps.places.SearchBox(
+    /** @type {HTMLInputElement} */(input_origin));
+    
+     searchBox_destiny = new google.maps.places.SearchBox(
+    /** @type {HTMLInputElement} */(input_destiny));
+    
+  
+  google.maps.event.addListener(searchBox_origin, 'places_changed', calcRoute);
+  
+  google.maps.event.addListener(searchBox_destiny, 'places_changed', calcRoute);
+  
+  }
+
+
+function calcRoute() {
+
+	//alert("teste");
+
+  // First, remove any existing markers from the map.
+  for (var i = 0; i < markerArray.length; i++) {
+    markerArray[i].setMap(null);
+  }
+
+  // Now, clear the array itself.
+  markerArray = [];
+
+
+	var places_origin = searchBox_origin.getPlaces();
+	var places_destiny = searchBox_destiny.getPlaces();
+	
+
+    if (places_origin.length == 0) {
+      return;
+    }
+    
+    if (places_destiny.length == 0) {
+      return;
+    }
+
+	var start=places_origin[0].name;
+	var end=places_destiny[0].name;
+
+  //alert("teste2");
+  
+  //alert(start);
+  //alert(end);
+  
+  
+  var request = {
+      origin: start,
+      destination: end,
+      travelMode: google.maps.TravelMode.DRIVING
+  };
+
+  // Route the directions and pass the response to a
+  // function to create markers for each step.
+  directionsService.route(request, function(response, status) {
+  //alert("debug less");
+  //alert(status);
+  //alert(response);
+  //directionsDisplay.setDirections(response);
+  //alert("after set dir");
+    if (status == google.maps.DirectionsStatus.OK) {
+      directionsDisplay.setDirections(response);
+      showSteps(response);
+      //alert("debug");
+    }
+  });
+  
+  //alert("final");
+  
+}
+
+
+
+
+
+function showSteps(directionResult) {
+  // For each step, place a marker, and add the text to the marker's
+  // info window. Also attach the marker to an array so we
+  // can keep track of it and remove it when calculating new
+  // routes.
+  var myRoute = directionResult.routes[0].legs[0];
+  
+  //alert(directionResult.routes[0].overview_polyline.length);
+  
+  poly=directionResult.routes[0].overview_polyline;
+  
+  var latLng_array = google.maps.geometry.encoding.decodePath(poly);
+  
+  //var Heading_array = new Float32Array(latLng_array.length);
+  
+  
+  //var heading = google.maps.geometry.spherical.computeHeading(latLng_array[0], latLng_array[1]);
+  //alert(heading);
+  
+  //alert(latLng_array.length);
+  
+  //alert(latLng_array[0]);
+  
+  var heading=0;
+  
+  for (var i = 0; i < latLng_array.length; i++) {
+  //alert(myRoute.steps[i].start_location);
+    var marker = new google.maps.Marker({
+      position: latLng_array[i],
+      map: map
+    });
+    
+    if( i != 0 ) {
+    	
+	heading = google.maps.geometry.spherical.computeHeading(latLng_array[i-1], latLng_array[i]);
+	
+    }
+    
+    //attachInstructionText(marker, myRoute.steps[i].instructions);
+    attachInstructionText(marker, latLng_array[i], heading);
+    
+    markerArray[i] = marker;
+  }
+  
+  
+  
+ //var dec= new google.maps.geometry.encoding.decodePath(directionResult.routes[0].overview_polyline);
+//alert("passed");
+//alert(createEncodings(directionResult.routes[0].overview_polyline));
+
+
+  //alert(myRoute.steps.length);
+
+  //for (var i = 0; i < myRoute.steps.length; i++) {
+  for (var i = 0; i < 0; i++) {
+  //alert(myRoute.steps[i].start_location);
+    var marker = new google.maps.Marker({
+      position: myRoute.steps[i].start_location,
+      map: map
+    });
+    //attachInstructionText(marker, myRoute.steps[i].instructions);
+    attachInstructionText(marker, myRoute.steps[i].start_location);
+    
+    markerArray[i] = marker;
+  }
+  
+  
+}
+
+
+function attachInstructionText(marker, latLng, heading) {
+  google.maps.event.addListener(marker, 'click', function() {
+    // Open an info window when the marker is clicked on,
+    // containing the text of the step.
+    //coord=text.substring(2,10);
+    street_url="http://maps.googleapis.com/maps/api/streetview?size=300x400&location=";
+    var url="<img src='";
+    var url2="&heading=";
+    var url3="&pitch=-0.76' alt='picture'>";
+    url = url.concat(street_url,latLng,url2,heading,url3);
+    //alert(img);
+    
+    
+   //text="<img src='http://maps.googleapis.com/maps/api/streetview?size=300x400&location=-23.20735,%20-45.&heading=151.78&pitch=-0.76' alt='picture'>";
+    
+    stepDisplay.setContent(url);
+   
+    stepDisplay.open(map, marker);
+  });
+}
+
+
+
+google.maps.event.addDomListener(window, 'load', initialize);
+
+    </script>
+    <style>
+      #target {
+        width: 345px;
+      }
+    </style>
+  </head>
+  <body>
+    <input id="pac-input_origin" class="control_origin" type="text" placeholder="Origem">
+    <input id="pac-input_destiny" class="control_destiny" type="text" placeholder="Destino">
+    <div id="map-canvas"></div>
+  </body>
+</html>
